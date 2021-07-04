@@ -1,16 +1,20 @@
-# This is a sample Python script.
-
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-
-
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+import config
+import trainer
+import evaluator
 
 
-# Press the green button in the gutter to run the script.
+def main(mode=None):
+    if mode == 'train':
+        trainer.train()
+    elif mode == 'evaluate':
+        evaluator.evaluate()
+    else:
+        raise Exception(f'config.mode should be either "train" or "evaluate". Not {mode}')
+    pass
+
+
 if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+    print(f'---Major Tom to Ground Control---')
+    assert (config.mode is not None)
+    main(config.mode)
+    print(f'------')
