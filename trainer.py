@@ -70,7 +70,7 @@ def train():
             train_step(images, labels)
             if step % 10 == 0:
                 print(f"Epoch: {epoch + 1}/{config.EPOCHS}, step:{step}/{n_iterations},"
-                      f" loss: {train_loss.result():.5f}, accuracy{top1_accuracy.result():.5f}")
+                      f" loss: {train_loss.result():.5f}, accuracy: {top1_accuracy.result():.5f}")
 
     # Check if the path to the file exists. If it doesnt create it using os make dir
     os.makedirs(os.path.dirname(config.save_model_dir), exist_ok=True)
