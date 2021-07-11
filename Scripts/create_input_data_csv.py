@@ -1,47 +1,64 @@
+import argparse
 import os
+
 import pandas as pd
 
-# This is where our downloaded images and metadata live locally
-csv_dir = os.path.join("c:/", "Users", "mfarj", "Documents", "ss_data")
-base_dir = os.path.join("e:/", "ss_data")
-src_dir = os.path.join(base_dir, "snapshotserengeti-unzipped", "snapshotserengeti-unzipped")
-season = 'SER_S9'
+
+def main(path_csv, output_dir):
+    base_image_dir = r'C:\Users\mfarj\Documents\ss_data\snapshotserengeti-unzipped\snapshotserengeti-unzipped'
+    # Read input csv
+    species_df = pd.read_csv(path_csv)
+    print(f"Len of images with species in season 9: {len(species_df)}")
+
+    # add column for full path
+    species_df['file_path_local'] = species_df.image_path_rel.map(lambda x: os.path.join(base_image_dir, x))
+
+    # file_doesnt_exist = []
+    # print(f"Iterating over files to see if they exist:")
+    # for index, row in species_df.iterrows():
+    #     if index % 10000 == 0:
+    #         print(index)
+    #     if not os.path.isfile(row['file_path_local']):
+    #         file_doesnt_exist.append(row.file_path_local)
+    #         species_df.drop(index, inplace=True)
+    #
+    # print(f"Len after filtering non-existent files: {len(species_df)}")
+    # print(f"Len missing: {len(file_doesnt_exist)}")
+    #
+    # # Store the missing images to a csv
+    # missing_files_path = os.path.join(output_dir, "missing_files.csv")
+    # with open(missing_files_path, 'w', newline='') as f:
+    #     wr = csv.writer(f, quoting=csv.QUOTE_ALL)
+    #     wr.writerow(file_doesnt_exist)
+    #
+
+    # Creating a encoded csv with relative paths and species to use for training
+    df_train_phase2 = species_df[['image_path_rel', 'question__species']]
+    enc_species, name_species = pd.factorize(df_train_phase2['question__species'])
+    df_train_phase2['encoded_species'] = enc_species
+
+    # Store filtered df as a csv file
+    species_df['encoded_species'] = enc_species
+    species_df_filepath = os.path.join(output_dir, "ser_s9_species_df_filtered.csv")
+    # species_df.to_csv(species_df_filepath, sep=',', index=False)
+
+    # Create a label to specie mapping df
+    df_labels = df_train_phase2.groupby(by=['question__species', 'encoded_species'], as_index=False).first()
+    # Store as csv
+    label_file_name = os.path.join(output_dir, "label_to_species_mapping.csv")
+    # df_labels.to_csv(label_file_name, columns=['question__species', 'encoded_species'], sep=',', index=False)
+    print(f"---main---")
 
 
 if __name__ == '__main__':
-    df_full_images = pd.read_csv(csv_dir + r'\SnapshotSerengeti_v2_1_images.csv')
-    df_full_annotations = pd.read_csv(csv_dir + r'\SnapshotSerengeti_v2_1_annotations.csv')
-    df_full_images.rename(columns={'Unnamed: 0': 'seq_id'}, inplace=True)
-    df_full_annotations.rename(columns={'Unnamed: 0': 'seq_id'}, inplace=True)
-    df_full_images.index = df_full_images.capture_id
-    df_full_images['season'] = df_full_images.capture_id.map(lambda x: x.split('#')[0])
-    df_full_images = df_full_images[df_full_images.season.isin([('%s' % season)])]
-    df_full_annotations = df_full_annotations[df_full_annotations.capture_id.isin(df_full_images.capture_id)]
+    parser = argparse.ArgumentParser(description='create_species_only_file_and_resize.py')
+    # Add parser arguments
+    parser.add_argument("--input-csv", default=r"C:\Users\mfarj\Documents\ss_data\data_csv\ser_s9_species_df_filtered.csv",
+                        type=str,
+                        help="Path to the input image csv")
+    parser.add_argument("--output-directory", default=r"C:\Users\mfarj\Documents\ss_data\data_csv", type=str,
+                        help="Path to the output csv")
+    # Execute the parse_args() method
+    args = parser.parse_args()
 
-    df_full_images['file_name_local'] = df_full_images.apply(
-        lambda x: (src_dir + '/' + x.image_path_rel), axis=1
-    )
-    df_full = df_full_images.join(df_full_annotations.set_index('capture_id'), how='inner', on=None, lsuffix='_x',
-                                  rsuffix='_y')
-
-    print('DF Full length:', len(df_full))
-
-    file_path_rel = []
-    question_species = []
-
-    for index, row in df_full.iterrows():
-        if os.path.isfile(row['file_name_local']) and os.stat(row['file_name_local']).st_size > 0:
-            file_path_rel.append(row['image_path_rel'])
-            question_species.append(row['question__species'])
-
-    print('Number of images: ', len(file_path_rel))
-    print('Number of labels: ', len(question_species))
-
-    df_final = pd.DataFrame({'file_path': file_path_rel, 'species': question_species})
-    num_species, name_species = pd.factorize(df_final['species'])
-    df_final['encoded_species'] = num_species
-    file_name = os.path.join(base_dir, "train_v3.csv")
-    df_final.to_csv(file_name, columns=['file_path', 'encoded_species'], sep=',', index=False)
-    label_file_name = os.path.join(base_dir, "label_to_species_V3.csv")
-    df_labels = df_final.groupby(by=['species', 'encoded_species'], as_index=False).first()
-    df_labels.to_csv(label_file_name, columns=['species', 'encoded_species'], sep=',', index=False)
+    main(args.input_csv, args.output_directory)

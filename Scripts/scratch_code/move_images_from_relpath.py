@@ -3,6 +3,7 @@ Script to move the images with file path relative to a new location keeping thei
 """
 import os
 from shutil import copyfile
+
 import pandas as pd
 
 # Input image dirs

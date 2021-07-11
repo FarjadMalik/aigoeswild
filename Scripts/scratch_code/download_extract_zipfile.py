@@ -1,8 +1,8 @@
-from urllib.request import urlopen
-#from io import BytesIO
-#from zipfile import ZipFile
-from tempfile import NamedTemporaryFile
 from shutil import unpack_archive
+# from io import BytesIO
+# from zipfile import ZipFile
+from tempfile import NamedTemporaryFile
+from urllib.request import urlopen
 
 zip_url_path = 'https://lilablobssc.blob.core.windows.net/snapshotserengeti-v-2-0/SnapshotSerengeti_S09_v2_0_part1.zip'
 store_path = r'E:\ss_data_v2'

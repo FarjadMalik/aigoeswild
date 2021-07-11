@@ -4,6 +4,7 @@
 import os
 
 import tensorflow as tf
+from sklearn.metrics import f1_score, precision_score, recall_score
 
 import config
 import models
@@ -42,6 +43,8 @@ def train():
         top1_accuracy(t_labels, predictions)
         # top5_accuracy(t_labels, predictions)
 
+        return predictions, loss
+
     # @tf.function
     # def valid_step(v_images, v_labels):
     #     predictions = model(v_images, training=False)
@@ -50,11 +53,11 @@ def train():
     #     valid_loss(v_loss)
     #     valid_accuracy(v_labels, predictions)
     #     # top5_accuracy(v_labels, predictions)
+    #     return predictions, loss
 
     n_iterations = len(train_ds)
     print(f"Batch size: {config.BATCH_SIZE}")
     print(f"Training set iterations: {n_iterations}")
-    print(f"Training set iterations: {len(test_ds)}")
     print(f"Training...")
 
     # start training
@@ -64,13 +67,28 @@ def train():
         # valid_loss.reset_states()
         # valid_accuracy.reset_states()
 
+        # Empty lists to store predictions and true labels
+        true_labels = []
+        predicted_labels = []
+
         step = 0
         for filenames, images, labels in train_ds:
             step = step + 1
-            train_step(images, labels)
-            if step % 10 == 0:
-                print(f"Epoch: {epoch + 1}/{config.EPOCHS}, step:{step}/{n_iterations},"
-                      f" loss: {train_loss.result():.5f}, accuracy: {top1_accuracy.result():.5f}")
+            t_predictions, t_loss = train_step(images, labels)
+            # Get predicted labels for each specie in batch
+            y_pred = (t_predictions > 0.5)
+            y_labels = y_pred.numpy().argmax(axis=1)
+            # add these to a list to calculate the overall scores at the end
+            true_labels.extend(labels)
+            predicted_labels.extend(y_labels)
+
+        f1 = f1_score(true_labels, predicted_labels, average='macro')
+        precision = precision_score(true_labels, predicted_labels, average='macro')
+        recall = recall_score(true_labels, predicted_labels, average='macro')
+
+        print(f"Epoch: {epoch + 1}/{config.EPOCHS}, step:{step}/{n_iterations},"
+              f" loss: {train_loss.result():.5f}, accuracy: {top1_accuracy.result():.5f},\n"
+              f" F1 score: {f1:.5f}, Precision: {precision:.5f}, Recall: {recall: .5f}")
 
     # Check if the path to the file exists. If it doesnt create it using os make dir
     os.makedirs(os.path.dirname(config.save_model_dir), exist_ok=True)

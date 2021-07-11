@@ -2,7 +2,7 @@
 
 """
 # Runner mode - Can be either train or evaluate
-mode = 'train'  # evaluate
+mode = 'train'  # train/evaluate
 
 # Training Parameters
 EPOCHS = 55
@@ -14,7 +14,7 @@ channels = 3
 seed = 42
 
 # Model Parameters
-save_model_dir = "saved_models/species_only_singles/model"
+save_model_dir = "saved_models/res18_species_custom_split_capture_ids_20210711/model"
 
 # choose a network
 model = "resnet18"
@@ -25,5 +25,6 @@ model = "resnet18"
 
 
 # Data Parameters
-train_csv = r"C:\Users\mfarj\Documents\ss_data\train_species_only_singles.csv"
+train_csv = r"C:\Users\mfarj\Documents\ss_data\data_csv\train_phase2_split.csv"
+test_csv = r"C:\Users\mfarj\Documents\ss_data\data_csv\test_phase2_split.csv"
 data_dir = r"C:\Users\mfarj\Documents\ss_data\snapshotserengeti-unzipped\snapshotserengeti-unzipped"

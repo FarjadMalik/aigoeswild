@@ -2,9 +2,10 @@
 
 """
 import os
-import pandas as pd
+
 import cv2
 import numpy as np
+import pandas as pd
 
 if __name__ == "__main__":
     path_csv = r'E:\ss_data\train_phase2_v7.csv'

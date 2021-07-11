@@ -1,9 +1,9 @@
-import tensorflow as tf
-import config
 import os
-import numpy as np
 
-from sklearn.model_selection import train_test_split
+import numpy as np
+import tensorflow as tf
+
+import config
 
 
 def filter_valid_filenames(filenames, labels):
@@ -39,16 +39,20 @@ def read_inputs(train_csv, data_dir):
 
 
 def _read_label_file(file, delimiter):
+    # index = 0
     f = open(file, "r")
     next(f)
     image_names = []
     labels = []
     for line in f:
         tokens = line.split(delimiter)
-        # Token[0] = file_path_rel
+        # Token[0] = image_path_rel
         image_names.append(tokens[0])
         # Token[1] = encoded specie label
         labels.append(tf.cast(int(tokens[1]), tf.int64))
+        # index += 1
+        # if index == 400:
+        #     break
     return image_names, labels
 
 
@@ -71,13 +75,9 @@ def _read_images(filename, label):
 
 
 def generate_datasets():
-    filenames, labels = read_inputs(config.train_csv, config.data_dir)
-
-    filenames_train, filenames_test, labels_train, labels_test = train_test_split(filenames,
-                                                                                  labels,
-                                                                                  stratify=labels,
-                                                                                  test_size=0.2,
-                                                                                  random_state=config.seed)
+    # Read inputs
+    filenames_train, labels_train = read_inputs(config.train_csv, config.data_dir)
+    filenames_test, labels_test = read_inputs(config.test_csv, config.data_dir)
 
     print(f'Train filenames Count: {len(filenames_train)}')
     print(f'Test filenames Count: {len(filenames_test)}')
