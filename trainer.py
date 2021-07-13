@@ -8,7 +8,7 @@ from sklearn.metrics import f1_score, precision_score, recall_score
 
 import config
 import models
-from data_loader.prepare_data import generate_datasets
+from data_loader.prepare_data import generate_train_dataset
 
 
 def train():
@@ -19,7 +19,7 @@ def train():
             tf.config.experimental.set_memory_growth(gpu, True)
 
     # get the train and test datasets
-    train_ds, test_ds = generate_datasets()
+    train_ds, valid_ds = generate_train_dataset()
 
     # create model
     model = models.get_model()
@@ -29,6 +29,8 @@ def train():
     train_loss = tf.keras.metrics.Mean(name='train_loss')
     top1_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='top1_accuracy')
 
+    valid_loss = tf.keras.metrics.Mean(name='valid_loss')
+    valid_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='top1_val_accuracy')
     # top5_accuracy = tf.keras.metrics.TopKCategoricalAccuracy(k=5, name='top5_accuracy')
 
     @tf.function
@@ -45,15 +47,15 @@ def train():
 
         return predictions, loss
 
-    # @tf.function
-    # def valid_step(v_images, v_labels):
-    #     predictions = model(v_images, training=False)
-    #     v_loss = loss_object(v_labels, predictions)
-    #
-    #     valid_loss(v_loss)
-    #     valid_accuracy(v_labels, predictions)
-    #     # top5_accuracy(v_labels, predictions)
-    #     return predictions, loss
+    @tf.function
+    def valid_step(v_images, v_labels):
+        predictions = model(v_images, training=False)
+        v_loss = loss_object(v_labels, predictions)
+
+        valid_loss(v_loss)
+        valid_accuracy(v_labels, predictions)
+        # top5_accuracy(v_labels, predictions)
+        return predictions, v_loss
 
     n_iterations = len(train_ds)
     print(f"Batch size: {config.BATCH_SIZE}")
@@ -72,26 +74,45 @@ def train():
         predicted_labels = []
 
         step = 0
+        # one full iteration of the train dataset
         for filenames, images, labels in train_ds:
             step = step + 1
-            t_predictions, t_loss = train_step(images, labels)
-            # Get predicted labels for each specie in batch
-            y_pred = (t_predictions > 0.5)
-            y_labels = y_pred.numpy().argmax(axis=1)
-            # add these to a list to calculate the overall scores at the end
-            true_labels.extend(labels)
-            predicted_labels.extend(y_labels)
+            t_predictions, _ = train_step(images, labels)
+            # Calculating f1 score for train set
+            # # Get predicted labels for each specie in batch
+            # y_pred = (t_predictions > 0.5)
+            # y_labels = y_pred.numpy().argmax(axis=1)
+            # # add these to a list to calculate the overall scores at the end
+            # true_labels.extend(labels)
+            # predicted_labels.extend(y_labels)
+            if step % 10 == 0:
+                print(f"Epoch: {epoch + 1}/{config.EPOCHS}, step:{step}/{n_iterations},"
+                      f" train loss: {train_loss.result():.5f}, top 1 accuracy: {top1_accuracy.result():.5f}")
 
+        # run a validation step
+        for filenames, valid_images, valid_labels in valid_ds:
+            val_predictions, _ = valid_step(valid_images, valid_labels)
+            # Read softmax predictions and calculate y_labels to compute f1 score
+            # Get predicted labels for each specie in batch
+            val_pred = (val_predictions > 0.5)
+            y_val_labels = val_pred.numpy().argmax(axis=1)
+            # add these to a list to calculate the overall scores at the end
+            true_labels.extend(valid_labels)
+            predicted_labels.extend(y_val_labels)
+
+        # Calculate scores of predictions
         f1 = f1_score(true_labels, predicted_labels, average='macro')
         precision = precision_score(true_labels, predicted_labels, average='macro')
         recall = recall_score(true_labels, predicted_labels, average='macro')
-
-        print(f"Epoch: {epoch + 1}/{config.EPOCHS}, step:{step}/{n_iterations},"
-              f" loss: {train_loss.result():.5f}, accuracy: {top1_accuracy.result():.5f},\n"
+        # logging results
+        print(f"Epoch completed: {epoch + 1}/{config.EPOCHS},"
+              f" train loss: {train_loss.result():.5f}, top 1 accuracy: {top1_accuracy.result():.5f},\n"
+              f" valid loss: {valid_loss.result():.5f}, valid top 1 accuracy: {valid_accuracy.result():.5f},\n"
               f" F1 score: {f1:.5f}, Precision: {precision:.5f}, Recall: {recall: .5f}")
 
-    # Check if the path to the file exists. If it doesnt create it using os make dir
-    os.makedirs(os.path.dirname(config.save_model_dir), exist_ok=True)
-    model.save_weights(filepath=config.save_model_dir, save_format='tf')
+        # Model finished training after all epochs. Saving the model
+        # Check if the path to the file exists. If it doesnt create it using os make dir
+        os.makedirs(os.path.dirname(config.save_model_dir), exist_ok=True)
+        model.save_weights(filepath=config.save_model_dir, save_format='tf')
 
     print(f"---End of training---")

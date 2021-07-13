@@ -3,6 +3,8 @@ import os
 
 import pandas as pd
 
+# For simon: Change file paths here
+
 
 def main(path_csv, output_dir):
     base_image_dir = r'C:\Users\mfarj\Documents\ss_data\snapshotserengeti-unzipped\snapshotserengeti-unzipped'
@@ -51,6 +53,7 @@ def main(path_csv, output_dir):
 
 
 if __name__ == '__main__':
+    # For simon
     parser = argparse.ArgumentParser(description='create_species_only_file_and_resize.py')
     # Add parser arguments
     parser.add_argument("--input-csv", default=r"C:\Users\mfarj\Documents\ss_data\data_csv\ser_s9_species_df_filtered.csv",

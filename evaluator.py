@@ -7,7 +7,7 @@ from sklearn.metrics import f1_score, precision_score, recall_score
 
 import config
 import models
-from data_loader.prepare_data import generate_datasets
+from data_loader.prepare_data import generate_train_dataset
 
 
 def f1_score_imbalanced(y_label, y_pred):
@@ -33,7 +33,7 @@ def evaluate():
             tf.config.experimental.set_memory_growth(gpu, True)
 
     # get the train and test datasets
-    train_ds, test_ds = generate_datasets()
+    train_ds, test_ds = generate_train_dataset()
 
     # load the model
     model = models.get_model()

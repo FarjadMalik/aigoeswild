@@ -6,6 +6,32 @@ import tensorflow as tf
 import config
 
 
+def _train_preprocess(filename, img, label):
+    # Image processing for training the network. Note the many random
+    # distortions applied to the image.
+
+    # Randomly crop a [height, width] section of the image.
+    reshaped_image = tf.image.random_crop(img, [config.image_height, config.image_width,
+                                                config.channels])
+
+    # Randomly flip the image horizontally.
+    reshaped_image = tf.image.random_flip_left_right(reshaped_image)
+
+    # Because these operations are not commutative, consider randomizing
+    # the order their operation.
+    reshaped_image = tf.image.random_brightness(reshaped_image, max_delta=63)
+    # Randomly changing contrast of the image
+    reshaped_image = tf.image.random_contrast(reshaped_image, lower=0.2, upper=1.8)
+
+    # Subtract off the mean and divide by the variance of the pixels.
+    reshaped_image = tf.image.per_image_standardization(reshaped_image)
+
+    # Set the shapes of tensors.
+    reshaped_image.set_shape([config.image_height, config.image_width, config.channels])
+
+    return filename, img, label
+
+
 def filter_valid_filenames(filenames, labels):
     # remove files which are not jpeg, not downloaded correctly
     true_files = []
@@ -56,53 +82,77 @@ def _read_label_file(file, delimiter):
     return image_names, labels
 
 
-def decode_img(img, crop_size, num_channels):
+def decode_img(img, num_channels):
     img = tf.image.decode_jpeg(img, channels=num_channels)  # color images
-    img = tf.image.convert_image_dtype(img, tf.float32)
     # convert unit8 tensor to floats in the [0,1]range
-    return tf.image.resize(img, crop_size)
+    img = tf.image.convert_image_dtype(img, tf.float32)
+    # Resize image: not needed
+    # img = tf.image.resize(img, [256, 256])
+    return img
 
 
 def _read_images(filename, label):
     img = tf.io.read_file(filename)
     try:
-        img = decode_img(img=img, crop_size=[config.image_height, config.image_width],
-                         num_channels=config.channels)
+        img = decode_img(img=img, num_channels=config.channels)
     except Exception as e:
         print(f'_read_images, Corrupted file: {filename} with exception as {e}')
 
     return filename, img, label
 
 
-def generate_datasets():
-    # Read inputs
-    filenames_train, labels_train = read_inputs(config.train_csv, config.data_dir)
+def generate_test_dataset():
     filenames_test, labels_test = read_inputs(config.test_csv, config.data_dir)
 
-    print(f'Train filenames Count: {len(filenames_train)}')
     print(f'Test filenames Count: {len(filenames_test)}')
+
+    # Count frequency of each species in the test and train datasets
+    print(f"Specie Frequencies in test dataset: \n"
+          f"{list(zip(*np.unique(labels_test, return_counts=True)))}")
+
+    # Load this on a tensor
+    test_ds = tf.data.Dataset.from_tensor_slices((filenames_test, labels_test))
+
+    # Read the images on the tensors as well along with the filenames and the labels
+    test_ds = test_ds.map(_read_images)
+    test_ds.shuffle(buffer_size=len(labels_test))
+
+    # read the original_dataset in the form of batch
+    test_ds = test_ds.batch(batch_size=config.BATCH_SIZE)
+
+    return test_ds
+
+
+def generate_train_dataset():
+    # Read inputs
+    filenames_train, labels_train = read_inputs(config.train_csv, config.data_dir)
+    filenames_valid, labels_valid = read_inputs(config.valid_csv, config.data_dir)
+
+    print(f'Train filenames Count: {len(filenames_train)}')
+    print(f'Validation filenames Count: {len(filenames_valid)}')
 
     # Count frequency of each species in the test and train datasets
     print(f"Specie Frequencies in train dataset: \n"
           f"{list(zip(*np.unique(labels_train, return_counts=True)))}")
-    print(f"Specie Frequencies in test dataset: \n"
-          f"{list(zip(*np.unique(labels_test, return_counts=True)))}")
+    print(f"Specie Frequencies in validation dataset: \n"
+          f"{list(zip(*np.unique(labels_valid, return_counts=True)))}")
 
     # todo: remove species with less than x images (x being 10, 50, 100?)
 
     # Load this on a tensor
     train_ds = tf.data.Dataset.from_tensor_slices((filenames_train, labels_train))
-    test_ds = tf.data.Dataset.from_tensor_slices((filenames_test, labels_test))
+    valid_ds = tf.data.Dataset.from_tensor_slices((filenames_valid, labels_valid))
 
     # Read the images on the tensors as well along with the filenames and the labels
     train_ds = train_ds.map(_read_images)
-    test_ds = test_ds.map(_read_images)
+    valid_ds = valid_ds.map(_read_images)
+    train_ds = train_ds.map(_train_preprocess)
 
     train_ds.shuffle(buffer_size=len(labels_train))
-    test_ds.shuffle(buffer_size=len(labels_test))
+    valid_ds.shuffle(buffer_size=len(labels_valid))
 
     # read the original_dataset in the form of batch
     train_ds = train_ds.shuffle(buffer_size=1000).batch(batch_size=config.BATCH_SIZE)
-    test_ds = test_ds.batch(batch_size=config.BATCH_SIZE)
+    valid_ds = valid_ds.batch(batch_size=config.BATCH_SIZE)
 
-    return train_ds, test_ds
+    return train_ds, valid_ds
