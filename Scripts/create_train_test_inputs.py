@@ -35,6 +35,15 @@ def split_species(specie_set, test_count, valid_count, seed=42):
         # Or we have reached the end of our loop
         if (len(test_set) >= test_count and len(valid_set) >= valid_count) \
                 or (i == (len(capture_ids) - 1)):
+            # if we are at the last iteration and the test_set is empty
+            # then we add the last capture event to the test set and
+            # validation is kept empty
+            if len(test_set) == 0:
+                smallest_capture_event = capture_ids.sort_values('count').iloc[0]
+                capture_subset = specie_set.loc[specie_set['capture_id'] == smallest_capture_event['capture_id']]
+                test_set = test_set.append(capture_subset)
+            # the remaining images (not present in test and valid set)
+            # are extracted to train set
             train_set = specie_set.loc[~(specie_set.index.isin(test_set.index) |
                                          specie_set.index.isin(valid_set.index))]
             break
@@ -64,7 +73,7 @@ def split_dataset(data=None, test_ratio=0.1, valid_ratio=0.1, seed=42):
     # For each specie divide into train and test sets
     for specie in distinct_species:
         # For testing
-        # if not specie == 'secretaryBird':
+        # if not specie == 'reptiles':
         #     continue
         print(f"Splitting dataset for {specie}")
         specie_subset = data.loc[data['question__species'] == specie]

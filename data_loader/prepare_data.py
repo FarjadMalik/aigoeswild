@@ -17,11 +17,11 @@ def _train_preprocess(filename, img, label):
     # Randomly flip the image horizontally.
     reshaped_image = tf.image.random_flip_left_right(reshaped_image)
 
-    # Because these operations are not commutative, consider randomizing
-    # the order their operation.
-    reshaped_image = tf.image.random_brightness(reshaped_image, max_delta=63)
-    # Randomly changing contrast of the image
-    reshaped_image = tf.image.random_contrast(reshaped_image, lower=0.2, upper=1.8)
+    # # Because these operations are not commutative, consider randomizing
+    # # the order their operation.
+    # reshaped_image = tf.image.random_brightness(reshaped_image, max_delta=63)
+    # # Randomly changing contrast of the image
+    # reshaped_image = tf.image.random_contrast(reshaped_image, lower=0.2, upper=1.8)
 
     # Subtract off the mean and divide by the variance of the pixels.
     reshaped_image = tf.image.per_image_standardization(reshaped_image)
@@ -46,15 +46,10 @@ def filter_valid_filenames(filenames, labels):
 
 
 def read_inputs(train_csv, data_dir):
-    print('Reading dataset')
-
     # Read input csv with file paths and the encoded species
     file_paths, labels = _read_label_file(train_csv, ',')
     # join with the base dir to get full path of the image
     filenames = [os.path.join(data_dir, i.replace('/', '\\')) for i in file_paths]
-    image_count = len(filenames)
-    print(f'Count filenames: {image_count}')
-
     # Filtering not needed as i already do this as part of input csv generation
     # filenames, labels = filter_valid_filenames(filenames, labels)
     # image_count = len(filenames)
@@ -137,8 +132,6 @@ def generate_train_dataset():
     print(f"Specie Frequencies in validation dataset: \n"
           f"{list(zip(*np.unique(labels_valid, return_counts=True)))}")
 
-    # todo: remove species with less than x images (x being 10, 50, 100?)
-
     # Load this on a tensor
     train_ds = tf.data.Dataset.from_tensor_slices((filenames_train, labels_train))
     valid_ds = tf.data.Dataset.from_tensor_slices((filenames_valid, labels_valid))
@@ -148,11 +141,11 @@ def generate_train_dataset():
     valid_ds = valid_ds.map(_read_images)
     train_ds = train_ds.map(_train_preprocess)
 
-    train_ds.shuffle(buffer_size=len(labels_train))
-    valid_ds.shuffle(buffer_size=len(labels_valid))
+    train_ds.shuffle(buffer_size=len(labels_train), seed=config.seed)
+    valid_ds.shuffle(buffer_size=len(labels_valid), seed=config.seed)
 
     # read the original_dataset in the form of batch
-    train_ds = train_ds.shuffle(buffer_size=1000).batch(batch_size=config.BATCH_SIZE)
+    train_ds = train_ds.batch(batch_size=config.BATCH_SIZE)
     valid_ds = valid_ds.batch(batch_size=config.BATCH_SIZE)
 
     return train_ds, valid_ds
